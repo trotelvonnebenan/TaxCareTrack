@@ -1,4 +1,5 @@
 var debug = false;
+var setting,cache, api;
 
 Neutralino.init();
 
@@ -19,7 +20,7 @@ Neutralino.os.setTray(tray);
 
 function onWindowClose() {
 
-    if(typeof(setting.min_tray)!=="undefined" && setting.min_tray==1)
+    if(typeof(setting)!=="undefined" && typeof(setting.min_tray)!=="undefined" && setting.min_tray==1)
     {
         if(debug) console.log('minimize to tray',setting)
         Neutralino.window.hide();
@@ -67,8 +68,6 @@ async function loadSettings(){
     setting = JSON.parse(settingJSON)
     return setting;
 }
-
-var setting,cache;
 
 async function init(){
     setting = await loadSettings();

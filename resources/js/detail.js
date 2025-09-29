@@ -198,6 +198,13 @@ function saveItem(){
         var dateString = $('#date').val()+' '+$('#time_from').val();
         data.begin = moment(dateString, "DD.MM.YYYY HH:mm:ss").format()
 
+        if($('#time_to').val()!="")
+        {
+            var dateString = $('#date').val()+' '+$('#time_to').val();
+            data.end = moment(dateString, "DD.MM.YYYY HH:mm:ss").format()
+        }
+
+
         data.description = $('#desc').val()
         data.project = $('#projectSelect').val()
         data.activity = $('#activitySelect').val()

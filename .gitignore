@@ -18,4 +18,5 @@
 /_app_scaffolds
 /build-*.sh
 /postproc-*.sh
+/preproc-*.sh
 todo.md
