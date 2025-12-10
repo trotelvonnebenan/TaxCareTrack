@@ -84,7 +84,7 @@ window.updateTray = function (isRunning, title) {
 }
 
 Neutralino.events.on("ready", function () {
-    // checkUpdate(); // Disabled for private fork
+    checkUpdate();
     // Init default tray
     window.updateTray(false, "");
 });
@@ -141,7 +141,7 @@ async function checkUpdate(forceOpen = 0) {
         initUpdateBtn();
         if (localStorage.getItem("updateNotify") == "1" && forceOpen == 0) return false;
 
-        let url = "https://www.owly.sk/apps/CodeTimer/update/manifest.json";
+        let url = "https://raw.githubusercontent.com/trotelvonnebenan/TaxCareTrack/main/update/manifest.json";
         let manifest = await Neutralino.updater.checkForUpdates(url);
 
         if (manifest.version != NL_APPVERSION) {

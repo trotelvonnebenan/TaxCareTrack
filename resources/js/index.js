@@ -12,6 +12,11 @@ init().then(() => {
         loadItems();
         loadActive();
 
+        // Init Sounds
+        window.audioStart = new Audio('audio/start.wav');
+        window.audioEnd = new Audio('audio/end.wav');
+        window.audioTick = new Audio('audio/tick.wav'); // Optional for seconds? Might be annoying.
+
         // Initialize search listeners
         $('#projectSearch').on('keyup', function () {
             renderProjectList($(this).val());
@@ -163,6 +168,7 @@ async function startItem() {
             activeItemId = resp.id;
             renderActive(resp);
             loadItems();
+            if (window.audioStart) window.audioStart.play().catch(e => console.log(e));
         } else {
             alert("Failed to start timer. Please check your selection.");
         }
@@ -174,7 +180,8 @@ async function stopItem() {
         await api.makeAPICallAsync("patch", "/api/timesheets/" + activeItemId + "/stop")
         renderInactive();
         clearInterval(timerDuration);
-        document.title = "CodeTimer";
+        document.title = "TaxCareTracker";
+        if (window.audioEnd) window.audioEnd.play().catch(e => console.log(e));
         await loadItems()
     }
 }
@@ -408,22 +415,57 @@ function openProjectSelector() {
     setTimeout(() => $('#projectSearch').focus(), 500);
 }
 
+// Pinning Logic
+function togglePinProject(e, id) {
+    e.stopPropagation();
+    var pinned = JSON.parse(localStorage.getItem('pinnedProjects') || '[]');
+    if (pinned.includes(id)) {
+        pinned = pinned.filter(pid => pid !== id);
+    } else {
+        pinned.push(id);
+    }
+    localStorage.setItem('pinnedProjects', JSON.stringify(pinned));
+    renderProjectList($('#projectSearch').val());
+}
+
 function renderProjectList(filter = "") {
     var html = "";
-    var projects = Object.values(cache._parseProjects); // Assuming _parseProjects is an object with IDs as keys
+    var projects = Object.values(cache._parseProjects);
+    var pinned = JSON.parse(localStorage.getItem('pinnedProjects') || '[]');
 
-    // Sort projects by name
-    projects.sort((a, b) => a.name.localeCompare(b.name));
+    // Separating pinned and unpinned
+    var pinnedProjects = [];
+    var otherProjects = [];
 
     projects.forEach(p => {
+        if (pinned.includes(p.id)) pinnedProjects.push(p);
+        else otherProjects.push(p);
+    });
+
+    // Sort both arrays
+    pinnedProjects.sort((a, b) => a.name.localeCompare(b.name));
+    otherProjects.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Combine
+    var allProjects = [...pinnedProjects, ...otherProjects];
+
+    allProjects.forEach(p => {
         if (filter && !p.name.toLowerCase().includes(filter.toLowerCase())) return;
 
+        var isPinned = pinned.includes(p.id);
+        var starClass = isPinned ? "fas fa-star text-warning" : "far fa-star text-secondary";
+
         html += `
-        <button type="button" class="list-group-item list-group-item-action bg-dark text-light border-secondary" onclick="selectProject(${p.id})">
-            <i class="fas fa-circle me-2" style="color: ${p.color}; font-size: 10px;"></i>
-            ${p.name}
-            <small class="text-secondary ms-2">${p.parentTitle || ''}</small>
-        </button>
+        <div class="list-group-item list-group-item-action bg-dark text-light border-secondary d-flex justify-content-between align-items-center p-0">
+             <button type="button" class="btn btn-link text-decoration-none text-light flex-grow-1 text-start p-2" onclick="selectProject(${p.id})">
+                <i class="fas fa-circle me-2" style="color: ${p.color}; font-size: 10px;"></i>
+                ${p.name}
+                <small class="text-secondary ms-2">${p.parentTitle || ''}</small>
+            </button>
+            <button class="btn btn-link p-2" onclick="togglePinProject(event, ${p.id})">
+                <i class="${starClass}"></i>
+            </button>
+        </div>
         `;
     });
     $('#projectList').html(html);
@@ -545,8 +587,12 @@ function togglePomodoro() {
                 clearInterval(pomoInterval);
                 pomoRunning = false;
                 $('#pomoBtn i').removeClass('fa-pause').addClass('fa-play');
-                Neutralino.os.showNotification('Pomodoro', 'Timer finished!', 'INFO');
-                // Play sound?
+                $('#pomoTimer').text('00:00');
+                document.title = "TaxCareTracker";
+                Neutralino.os.showNotification('Pomodoro Finished', 'Time is up!', 'INFO');
+                Neutralino.window.show();
+                if (window.audioEnd) window.audioEnd.play().catch(e => console.log(e));
+                return;
             }
         }, 1000);
     }

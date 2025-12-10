@@ -56,3 +56,35 @@ To start the app in development mode:
 ```bash
 npx @neutralinojs/neu run
 ```
+
+## Release Process (Auto-Update)
+
+To release a new version that your coworkers can automatically update to:
+
+1.  **Update Version**:
+    -   Open `neutralino.config.json` and bump `"version"` (e.g., `"1.0.1"`).
+    -   Open `resources/setting.html` and update the version in the footer.
+
+2.  **Build Application**:
+    ```bash
+    npx @neutralinojs/neu build
+    ```
+
+3.  **Commit and Push**:
+    Commit your changes and push to GitHub.
+
+4.  **Create GitHub Release**:
+    -   Go to your GitHub repo -> Releases -> Draft a new release.
+    -   Tag version: `v1.0.1` (Must match the version in config).
+    -   Title: `v1.0.1`.
+    -   **Important**: Upload the `dist/TaxCareTracker/resources.neu` file to this release as an asset.
+    -   Publish release.
+
+5.  **Update Manifest**:
+    -   Edit `update/manifest.json` in your project.
+    -   Update `"version"` to `"1.0.1"`.
+    -   Update `"resourcesURL"` to `https://github.com/trotelvonnebenan/TaxCareTrack/releases/download/v1.0.1/resources.neu`.
+    -   Commit and push this change to `main`.
+
+6.  **Done**:
+    -   Coworkers' apps will check `manifest.json`, see the new version, and download the `resources.neu` from the release.
