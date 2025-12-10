@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CodeTimer</title>
+    <title>TaxCareTracker</title>
 
     <link href="lib/bootstrap/bootstrap-5.3.0-alpha3-dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="lib/fontawesome/css/all.min.css" rel="stylesheet" />
@@ -43,8 +43,7 @@
             <img src="icons/logo.png" class="logo" onclick="openHomepage()">
             <div class="header-actions">
                 <button class="btn-icon" onclick="loadItems()"><i class="fas fa-sync-alt"></i></button>
-                <a href="./setting.html" class="btn-icon"><i class="fas fa-cog"></i><i
-                        class="update-dot text-danger fas fa-circle"></i></a>
+                <a href="./setting.html" class="btn-icon"><i class="fas fa-cog"></i></a>
             </div>
         </div>
 
@@ -83,6 +82,12 @@
         <div class="today-total-container">
             <span class="today-label">TODAY TOTAL</span>
             <span class="today-value" id="todayTotal">0:00:00</span>
+        </div>
+
+        <div class="progress mb-3 mx-3" style="height: 4px; background-color: var(--bg-darker);">
+            <div class="progress-bar" id="dailyProgress" role="progressbar"
+                style="width: 0%; background-color: var(--toggl-purple);" aria-valuenow="0" aria-valuemin="0"
+                aria-valuemax="100"></div>
         </div>
 
         <div class="list" id="listView">
@@ -214,6 +219,11 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Mini Mode Toggle -->
+    <div class="mini-mode-btn" onclick="toggleMiniMode()" title="Toggle Mini Mode">
+        <i class="fas fa-compress" id="miniModeIcon"></i>
     </div>
 
     <script src="js/neutralino.js"></script>

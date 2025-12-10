@@ -81,18 +81,31 @@ async function renderActive(item) {
     $('.start-btn').addClass('d-none');
     $('.stop-btn').removeClass('d-none');
 
-    // Update project button
+    // Update project button and global state
     if (item.project && cache._parseProjects[item.project]) {
+        selectedProjectId = item.project;
         updateProjectButton(item.project);
     } else {
+        selectedProjectId = null;
         resetProjectButton();
     }
 
-    // Update activity button
+    // Update activity button and global state
     if (item.activity && cache._parseActivities[item.activity]) {
+        selectedActivityId = item.activity;
         updateActivityButton(item.activity);
     } else {
+        selectedActivityId = null;
         resetActivityButton();
+    }
+
+    // Update tags global state
+    if (item.tags && Array.isArray(item.tags)) {
+        selectedTagIds = item.tags.map(t => t.id || t); // Handle object or ID array
+        updateTagButton(selectedTagIds.length);
+    } else {
+        selectedTagIds = [];
+        updateTagButton(0);
     }
 
     // Update billable status
@@ -166,24 +179,29 @@ async function stopItem() {
     }
 }
 
-function repeatItem(itemId) {
-    api = new API();
+async function repeatItem(itemId) {
     var data = {};
     data.copy = "all";
-    var item = api.makeAPICall("patch", "/api/timesheets/" + itemId + "/restart", data)
-    if (item.id) {
-        if (debug) console.log('repeatItem', item);
-        activeItemId = item.id
-        renderActive(item)
-        window.scrollTo(0, 0);
-    }
+    data.begin = moment().format(); // Fix time drift by enforcing client start time
+
+    await api.makeAPICallAsync("patch", "/api/timesheets/" + itemId + "/restart", data).then((item) => {
+        if (item.id) {
+            if (debug) console.log('repeatItem', item);
+            activeItemId = item.id;
+            renderActive(item);
+            window.scrollTo(0, 0);
+        }
+    });
 }
 
 function renderInactive() {
+    activeItemId = 0;
     $('#desc').val('');
     $('.start-btn').removeClass('d-none');
     $('.stop-btn').addClass('d-none');
     $('.stop-time').text('00:00:00');
+
+    if (timerDuration) clearInterval(timerDuration);
 
     resetProjectButton();
     resetActivityButton();
@@ -196,6 +214,11 @@ function renderInactive() {
     $('#desc').removeClass('active');
     $('#desc').off('click');
     document.title = "CodeTimer";
+
+    // Update Tray
+    if (typeof window.updateTray === 'function') {
+        window.updateTray(false, "");
+    }
 }
 
 function updateProjectButton(projectId) {
@@ -332,11 +355,48 @@ async function renderTimesheet(data) {
                 ${htmlDataItems}
             </div>`;
         }
+
+        // Update Daily Progress (using the first group which is "Today" if sorted desc)
+        // Note: result is sorted by date key. If today exists, it should be the last or first?
+        // Let's rely on finding today's date key.
+        var todayKey = moment().format("DD.MM.YYYY");
+        var todayTotalSeconds = 0;
+
+        // Find total for today
+        Object.entries(result).forEach(([key, items]) => {
+            if (key === todayKey) {
+                items.forEach(i => todayTotalSeconds += i.duration);
+            }
+        });
+
+        // Add active time if started today
+        if (activeItemId > 0) {
+            // This is trickier as we don't track active duration in this loop easily.
+            // But renderActive() updates the timer. 
+            // We might just update progress bar from result for now.
+        }
+
+        var goalHours = (setting && setting.daily_goal) ? parseFloat(setting.daily_goal) : 8;
+        var goalSeconds = goalHours * 3600;
+        var pct = Math.min(100, (todayTotalSeconds / goalSeconds) * 100);
+
+        $('#dailyProgress').css('width', pct + '%');
+
+        // Color Change
+        if (pct >= 100) {
+            $('#dailyProgress').css('background-color', '#ffc107'); // Gold
+        } else if (pct > 50) {
+            $('#dailyProgress').css('background-color', '#4db6ac'); // Teal/Success
+        } else {
+            $('#dailyProgress').css('background-color', 'var(--toggl-purple)');
+        }
+
         $('.list-data').html(htmlData)
     }
     else {
         $('.list-data').html('<div class="text-center text-secondary mt-5">No time entries found</div>')
         $('#todayTotal').text('0:00:00');
+        $('#dailyProgress').css('width', '0%');
     }
 }
 
@@ -568,7 +628,7 @@ async function handleIdle(action) {
 
             renderInactive();
             clearInterval(timerDuration);
-            document.title = "CodeTimer";
+            document.title = "TaxCareTracker";
             await loadItems();
         }
     } else if (action === 'discard_new') {
@@ -587,4 +647,37 @@ async function handleIdle(action) {
     }
 
     idleService.isIdle = false;
+}
+
+// Mini Mode Logic
+var isMiniMode = false;
+var lastWindowRect = { width: 800, height: 600 }; // Default fallback
+
+async function toggleMiniMode() {
+    isMiniMode = !isMiniMode;
+
+    if (isMiniMode) {
+        // Save current size? Neutralino doesn't provide easy getSize yet in v3 like this, 
+        // but we can assume standard or use fallback. 
+        // We'll rely on restoring to default or last known config.
+
+        $('body').addClass('mini-mode');
+        // Resize to small strip
+        await Neutralino.window.setSize({ width: 350, height: 60 });
+        await Neutralino.window.setAlwaysOnTop(true);
+        $('#miniModeIcon').removeClass('fa-compress').addClass('fa-expand');
+    } else {
+        $('body').removeClass('mini-mode');
+        // Restore size
+        await Neutralino.window.setSize({ width: 800, height: 600 });
+
+        // Restore always on top preference
+        if (setting && setting.always_top == 1) {
+            await Neutralino.window.setAlwaysOnTop(true);
+        } else {
+            await Neutralino.window.setAlwaysOnTop(false);
+        }
+
+        $('#miniModeIcon').removeClass('fa-expand').addClass('fa-compress');
+    }
 }

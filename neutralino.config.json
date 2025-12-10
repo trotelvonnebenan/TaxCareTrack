@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/neutralinojs/neutralinojs/main/schemas/neutralino.config.schema.json",
-  "applicationId": "sk.owly.CodeTimer",
-  "version": "1.0.15",
+  "applicationId": "sk.trotelvonnebenan.TaxCareTracker",
+  "version": "1.0.0",
   "defaultMode": "window",
   "port": 0,
   "documentRoot": "/resources/",
@@ -27,7 +27,7 @@
   "globalVariables": {},
   "modes": {
     "window": {
-      "title": "CodeTimer",
+      "title": "TaxCareTracker",
       "width": 800,
       "height": 600,
       "minWidth": 200,
@@ -65,7 +65,7 @@
     }
   },
   "cli": {
-    "binaryName": "CodeTimer",
+    "binaryName": "TaxCareTracker",
     "resourcesPath": "/resources/",
     "extensionsPath": "/extensions/",
     "clientLibrary": "/resources/js/neutralino.js",
@@ -85,9 +85,9 @@
         "universal"
       ],
       "minimumOS": "10.13.0",
-      "appName": "CodeTimer",
-      "appBundleName": "CodeTimer",
-      "appIdentifier": "sk.owly.CodeTimer",
+      "appName": "TaxCareTracker",
+      "appBundleName": "TaxCareTracker",
+      "appIdentifier": "sk.trotelvonnebenan.TaxCareTracker",
       "appIcon": "./resources/icons/app.icns"
     }
   }
