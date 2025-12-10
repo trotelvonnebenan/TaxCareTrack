@@ -76,8 +76,10 @@ To release a new version that your coworkers can automatically update to:
 4.  **Create GitHub Release**:
     -   Go to your GitHub repo -> Releases -> Draft a new release.
     -   Tag version: `v1.0.1` (Must match the version in config).
-    -   Title: `v1.0.1`.
-    -   **Important**: Upload the `dist/TaxCareTracker/resources.neu` file to this release as an asset.
+    -   Title: `v1.0.0`.
+    -   **Important**: Upload the following files to the release assets:
+        -   `dist/TaxCareTracker/resources.neu` (Required for auto-update)
+        -   `dist/TaxCareTracker/CodeTimer-win_x64.exe` (Required for new users/coworkers)
     -   Publish release.
 
 5.  **Update Manifest**:
@@ -85,6 +87,8 @@ To release a new version that your coworkers can automatically update to:
     -   Update `"version"` to `"1.0.1"`.
     -   Update `"resourcesURL"` to `https://github.com/trotelvonnebenan/TaxCareTrack/releases/download/v1.0.1/resources.neu`.
     -   Commit and push this change to `main`.
+    -   **Note**: If your repository is **Private**, the app cannot read this file safely. You must host the `manifest.json` on a public URL (like a GitHub Gist) and update `main.js` to point to that Gist URL.
 
 6.  **Done**:
-    -   Coworkers' apps will check `manifest.json`, see the new version, and download the `resources.neu` from the release.
+    -   Coworkers can download the `.exe` to install.
+    -   Existing apps will check `manifest.json` and download `resources.neu` automatically (if manifest is accessible).

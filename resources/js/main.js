@@ -171,10 +171,9 @@ Do you want to install update now?`,
     }
     catch (error) {
         if (debug) console.log('update check failed', error);
-        await Neutralino.os.showMessageBox('Update failed',
-            `Update failed, please try again later.`,
+        await Neutralino.os.showMessageBox('Update Check Failed',
+            `Could not reach update server. \nIf you are using a Private GitHub repository, the app cannot access updates.\n\nError: ${JSON.stringify(error)}`,
             'OK', 'ERROR');
-        closeLoadingDialog();
     }
 
 
