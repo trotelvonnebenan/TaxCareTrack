@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
-  <head>
+
+<head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CodeTimer</title>
@@ -8,16 +9,18 @@
     <link href="lib/bootstrap/bootstrap-5.3.0-alpha3-dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="lib/fontawesome/css/all.min.css" rel="stylesheet" />
     <script src="lib/bootstrap/bootstrap-5.3.0-alpha3-dist/js/bootstrap.bundle.min.js"></script>
-    <script src="lib/jquery/dist/jquery.min.js"></script>   
+    <script src="lib/jquery/dist/jquery.min.js"></script>
 
     <script src="lib/moment/moment.min.js"></script>
 
-    <link href="style.css" rel="stylesheet"/>
-  </head>
-  <body data-bs-theme="dark">
+    <link href="style.css" rel="stylesheet" />
+</head>
+
+<body data-bs-theme="dark">
     <!-- Modal -->
-      
-    <div class="modal modal-sm fade" id="loadingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+
+    <div class="modal modal-sm fade" id="loadingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+        aria-labelledby="exampleModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="text-end mx-2 my-1">
@@ -32,43 +35,183 @@
             </div>
         </div>
     </div>
-  
-    
+
+
 
     <div class="container">
-        <div class="header pt-4">
-            <div class="row">
-                <div class="col-6 col-md-8">
-                        <img src="icons/logo.png" class="logo" onclick="openHomepage()">
-                </div>
-                <div class="col-6 col-md-4 text-end">
-                    <a href="#" class="btn btn-sm btn-primary" onclick="loadItems();"><i class="fas fa-refresh"></i> <span class="d-none d-sm-inline-block">Refresh</span></a>
-                    <a href="./setting.html" class="btn btn-sm btn-primary"><i class="fas fa-sliders"></i> <span class="d-none d-sm-inline-block">Settings</span><i class="update-dot text-danger fas fa-circle"></i></a>
-                </div>
+        <div class="header">
+            <img src="icons/logo.png" class="logo" onclick="openHomepage()">
+            <div class="header-actions">
+                <button class="btn-icon" onclick="loadItems()"><i class="fas fa-sync-alt"></i></button>
+                <a href="./setting.html" class="btn-icon"><i class="fas fa-cog"></i><i
+                        class="update-dot text-danger fas fa-circle"></i></a>
             </div>
         </div>
-        <div class="new-task mt-3">
-            <div class="border border-1 border-secondary p-3 d-inline-block w-100">
-                <div class="row">
-                    <div class="col-12">
-                        <div class="desc-area d-inline-block" style="width: calc(100% - 120px);">
-                            <input type="text" name="desc" id="desc" placeholder="Description of your work" class="w-100 px-2 py-2 bg-transparent border-0"/>
-                        </div>
-                        <div class="btns-area d-inline-block float-end">
-                            <a href="#" class="btn  btn-primary d-inline-block start-btn px-4" onclick="window.location.href='/detail.html?description='+encodeURIComponent($('#desc').val());">
-                                <i class="fas fa-play"></i> Start
-                            </a>
-                            <a href="#" class="d-none btn btn-danger d-inline-block stop-btn px-4" onclick="stopItem()">
-                                <i class="fas fa-stop"></i> <span class="stop-hover">Stop</span><span class="stop-time">00:00:00</span>
-                            </a>
-                        </div>
+
+        <div class="timer-bar">
+            <input type="text" id="desc" class="desc-input" placeholder="What are you working on?">
+            <button class="project-select-btn" onclick="openProjectSelector()"><i class="fas fa-folder-plus"></i>
+                Project</button>
+            <button class="activity-select-btn" onclick="openActivitySelector()"><i class="fas fa-tasks"></i>
+                Activity</button>
+            <button class="tag-select-btn" onclick="openTagSelector()"><i class="fas fa-tag"></i></button>
+            <button class="billable-btn" onclick="toggleBillable()" title="Billable"><i
+                    class="fas fa-dollar-sign"></i></button>
+            <div class="timer-display stop-time">00:00:00</div>
+            <button class="btn-start start-btn" onclick="startItem()">
+                <i class="fas fa-play"></i>
+            </button>
+            <button class="btn-start btn-stop stop-btn d-none" onclick="stopItem()">
+                <i class="fas fa-stop"></i>
+            </button>
+        </div>
+
+        <div class="nav-tabs-container">
+            <ul class="nav nav-tabs custom-tabs">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#" onclick="switchTab('list')">List</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="switchTab('pomodoro')">Pomodoro</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#" onclick="switchTab('calendar')">Calendar</a>
+                </li>
+            </ul>
+        </div>
+
+        <div class="today-total-container">
+            <span class="today-label">TODAY TOTAL</span>
+            <span class="today-value" id="todayTotal">0:00:00</span>
+        </div>
+
+        <div class="list" id="listView">
+            <div class="list-data">
+                <!-- Time entries will be injected here -->
+            </div>
+        </div>
+
+        <div class="pomodoro-view d-none" id="pomodoroView">
+            <div class="pomodoro-container text-center mt-4">
+                <div class="pomodoro-status mb-3 text-secondary" id="pomoStatus">FOCUS</div>
+                <div class="pomodoro-timer mb-4" id="pomoTimer">25:00</div>
+
+                <div class="pomodoro-controls mb-4">
+                    <button class="btn btn-lg btn-primary rounded-circle mx-2" onclick="togglePomodoro()" id="pomoBtn">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button class="btn btn-lg btn-outline-secondary rounded-circle mx-2" onclick="resetPomodoro()">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+
+                <div class="pomodoro-settings">
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="pomoMode" id="modeFocus" autocomplete="off" checked
+                            onclick="setPomoMode('focus')">
+                        <label class="btn btn-outline-secondary btn-sm" for="modeFocus">Focus</label>
+
+                        <input type="radio" class="btn-check" name="pomoMode" id="modeShort" autocomplete="off"
+                            onclick="setPomoMode('short')">
+                        <label class="btn btn-outline-secondary btn-sm" for="modeShort">Short Break</label>
+
+                        <input type="radio" class="btn-check" name="pomoMode" id="modeLong" autocomplete="off"
+                            onclick="setPomoMode('long')">
+                        <label class="btn btn-outline-secondary btn-sm" for="modeLong">Long Break</label>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="list">
-            <div class="row list-data">
+        <div class="calendar-view d-none" id="calendarView">
+            <div class="text-center mt-5 text-secondary">
+                <i class="fas fa-calendar-alt fa-3x mb-3"></i>
+                <h5>Calendar</h5>
+                <p>Coming soon...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Selector Modal -->
+    <div class="modal fade" id="projectModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title">Select Project</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" class="form-control mb-3" id="projectSearch" placeholder="Search projects...">
+                    <div class="list-group list-group-flush" id="projectList"
+                        style="max-height: 300px; overflow-y: auto;">
+                        <!-- Projects injected here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Selector Modal -->
+    <div class="modal fade" id="activityModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title">Select Activity</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" class="form-control mb-3" id="activitySearch" placeholder="Search activities...">
+                    <div class="list-group list-group-flush" id="activityList"
+                        style="max-height: 300px; overflow-y: auto;">
+                        <!-- Activities injected here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tag Selector Modal -->
+    <div class="modal fade" id="tagModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title">Select Tags</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" class="form-control mb-3" id="tagSearch" placeholder="Search tags...">
+                    <div class="list-group list-group-flush" id="tagList" style="max-height: 300px; overflow-y: auto;">
+                        <!-- Tags injected here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Idle Modal -->
+    <div class="modal fade" id="idleModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title">Idle Detected</h5>
+                </div>
+                <div class="modal-body">
+                    <p class="text-secondary">You were away since <span id="idleSinceTime"
+                            class="text-white fw-bold"></span>.</p>
+                    <p class="text-secondary">What do you want to do with the idle time (<span id="idleDuration"
+                            class="text-white fw-bold"></span>)?</p>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-danger" onclick="handleIdle('discard')">Discard
+                        Idle</button>
+                    <button type="button" class="btn btn-outline-warning" onclick="handleIdle('discard_new')">Discard &
+                        New</button>
+                    <button type="button" class="btn btn-primary" onclick="handleIdle('keep')">Keep Time</button>
+                </div>
             </div>
         </div>
     </div>
@@ -78,8 +221,9 @@
     <script src="js/main.js"></script>
     <script src="js/API.js"></script>
     <script src="js/cache.js"></script>
-    
+    <script src="js/idle.js"></script>
     <script src="js/index.js"></script>
-    
-  </body>
+
+</body>
+
 </html>

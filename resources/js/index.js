@@ -1,182 +1,590 @@
 var activeItemId = 0;
-init().then(()=>{
+var selectedProjectId = null;
+var selectedActivityId = null;
+var selectedTagIds = [];
+var isBillable = false;
+
+init().then(() => {
     api = new API();
-    if(debug) console.log('starting load elements')
+    if (debug) console.log('starting load elements')
 })
-.then(()=>{
-    loadItems();    
-    loadActive();
-})
+    .then(() => {
+        loadItems();
+        loadActive();
 
+        // Initialize search listeners
+        $('#projectSearch').on('keyup', function () {
+            renderProjectList($(this).val());
+        });
+        $('#activitySearch').on('keyup', function () {
+            renderActivityList($(this).val());
+        });
+        $('#tagSearch').on('keyup', function () {
+            renderTagList($(this).val());
+        });
 
+        // Keyboard Shortcuts
+        $(document).on('keydown', function (e) {
+            // Ctrl+S or Cmd+S to Start/Stop
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                if (activeItemId > 0) {
+                    stopItem();
+                } else {
+                    startItem();
+                }
+            }
 
-async function loadItems(){
-    api.makeAPICallAsync("get","/api/timesheets?active=0").then((items)=>{
-        if(debug) console.log('items',items)
+            // Ctrl+N or Cmd+N for New Entry (redirect to detail)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                e.preventDefault();
+                window.location.href = '/detail.html';
+            }
+
+            // Ctrl+R or Cmd+R to Sync/Reload (already handled by browser usually, but let's map to our loadItems)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+                e.preventDefault();
+                loadItems();
+                loadActive();
+            }
+
+            // Esc to close modals
+            if (e.key === 'Escape') {
+                $('.modal').modal('hide');
+            }
+        });
+    })
+
+async function loadItems() {
+    api.makeAPICallAsync("get", "/api/timesheets?active=0").then((items) => {
+        if (debug) console.log('items', items)
         renderTimesheet(items)
     });
-    
 }
 
-
-async function loadActive(){
-
-    api.makeAPICallAsync("get", "/api/timesheets/active").then((activeItemArr)=>{
-        if(debug) console.log('active',activeItemArr)
-        if(activeItemArr.length) 
-        {
+async function loadActive() {
+    api.makeAPICallAsync("get", "/api/timesheets/active").then((activeItemArr) => {
+        if (debug) console.log('active', activeItemArr)
+        if (activeItemArr.length) {
             activeItemId = activeItemArr[0].id;
             renderActive(activeItemArr[0]);
         }
+        else {
+            renderInactive();
+        }
     });
-    
 }
 
 var timerDuration;
-async function renderActive(item){
+async function renderActive(item) {
     $('#desc').val(item.description);
     $('.start-btn').addClass('d-none');
     $('.stop-btn').removeClass('d-none');
-    $('#desc').attr('readonly','readonly');
-    $('#desc').attr('onclick',`window.location.href='/detail.html?timesheet=${item.id}&active=1'`);
-    $('#desc').addClass('active');
 
+    // Update project button
+    if (item.project && cache._parseProjects[item.project]) {
+        updateProjectButton(item.project);
+    } else {
+        resetProjectButton();
+    }
+
+    // Update activity button
+    if (item.activity && cache._parseActivities[item.activity]) {
+        updateActivityButton(item.activity);
+    } else {
+        resetActivityButton();
+    }
+
+    // Update billable status
+    isBillable = item.billable;
+    updateBillableButton();
+
+    $('#desc').addClass('active');
+    // Allow clicking description to go to detail view
+    $('#desc').off('click').on('click', function () {
+        window.location.href = '/detail.html?timesheet=' + item.id + '&active=1';
+    });
+
+    clearInterval(timerDuration);
     var totalSec = (moment().format('X') - moment(item.begin).format('X'));
-    timerDuration = setInterval(function(){
-        totalSec+=1
+    timerDuration = setInterval(function () {
+        totalSec += 1
         stringDuration = formatDuration(totalSec)
         $('.stop-time').text(stringDuration);
-    },1000);
+        document.title = stringDuration + " - CodeTimer";
+    }, 1000);
 }
 
-async function stopItem(){
-    if(activeItemId > 0)
-    {
-        await api.makeAPICallAsync("patch","/api/timesheets/"+activeItemId+"/stop")
+async function startItem() {
+    var desc = $('#desc').val();
+
+    var data = {};
+    data.begin = moment().format();
+    data.description = desc;
+    data.billable = isBillable;
+
+    if (selectedProjectId) {
+        data.project = selectedProjectId;
+    }
+
+    if (selectedActivityId) {
+        data.activity = selectedActivityId;
+    }
+
+    if (selectedTagIds.length > 0) {
+        data.tags = selectedTagIds.join(',');
+    }
+
+    if (!selectedProjectId) {
+        openProjectSelector();
+        return;
+    }
+
+    if (!selectedActivityId) {
+        openActivitySelector();
+        return;
+    }
+
+    await api.makeAPICallAsync("post", "/api/timesheets", data).then((resp) => {
+        if (resp.id) {
+            activeItemId = resp.id;
+            renderActive(resp);
+            loadItems();
+        } else {
+            alert("Failed to start timer. Please check your selection.");
+        }
+    });
+}
+
+async function stopItem() {
+    if (activeItemId > 0) {
+        await api.makeAPICallAsync("patch", "/api/timesheets/" + activeItemId + "/stop")
         renderInactive();
         clearInterval(timerDuration);
+        document.title = "CodeTimer";
         await loadItems()
     }
 }
 
-function repeatItem(itemId){
+function repeatItem(itemId) {
     api = new API();
     var data = {};
-    data.copy="all";
-    var item = api.makeAPICall("patch","/api/timesheets/"+itemId+"/restart", data)
-    if(item.id) 
-    {
-        if(debug) console.log('repeatItem', item);
+    data.copy = "all";
+    var item = api.makeAPICall("patch", "/api/timesheets/" + itemId + "/restart", data)
+    if (item.id) {
+        if (debug) console.log('repeatItem', item);
         activeItemId = item.id
         renderActive(item)
-        window.scrollY(0);
+        window.scrollTo(0, 0);
     }
-
 }
 
-function renderInactive(){
+function renderInactive() {
     $('#desc').val('');
-    $('#desc').removeAttr('readonly');
     $('.start-btn').removeClass('d-none');
     $('.stop-btn').addClass('d-none');
     $('.stop-time').text('00:00:00');
-    $('#desc').removeAttr('onclick');
+
+    resetProjectButton();
+    resetActivityButton();
+    selectedProjectId = null;
+    selectedActivityId = null;
+    selectedTagIds = [];
+    isBillable = false;
+    updateBillableButton();
+
     $('#desc').removeClass('active');
+    $('#desc').off('click');
+    document.title = "CodeTimer";
 }
 
+function updateProjectButton(projectId) {
+    if (cache._parseProjects[projectId]) {
+        var p = cache._parseProjects[projectId];
+        $('.project-select-btn').html(`<i class="fas fa-folder" style="color: ${p.color}"></i> ${p.name}`);
+        $('.project-select-btn').css('color', '#fff');
+    }
+}
 
-async function renderTimesheet(data){
+function resetProjectButton() {
+    $('.project-select-btn').html(`<i class="fas fa-folder-plus"></i> Project`);
+    $('.project-select-btn').css('color', 'var(--toggl-purple)');
+}
 
-        var items = data;
-        var list = {};
-        if(items.length)
-        {
-            items.forEach(function(item,key){
-                var date = new Date(item.end)
-                var d = date.getDate();
-                var m = date.getMonth() + 1;
-                var y = date.getFullYear();
+function updateActivityButton(activityId) {
+    if (cache._parseActivities[activityId]) {
+        var a = cache._parseActivities[activityId];
+        $('.activity-select-btn').html(`<i class="fas fa-tasks"></i> ${a.name}`);
+        $('.activity-select-btn').css('color', '#fff');
+    }
+}
 
-                var itemData = item;
-                var dateFormatted = d+'.'+m+'.'+y;
-                if(typeof(list[dateFormatted])==="undefined") list[dateFormatted] = [];
-                list[dateFormatted].push(itemData);
-                
-            });
+function resetActivityButton() {
+    $('.activity-select-btn').html(`<i class="fas fa-tasks"></i> Activity`);
+    $('.activity-select-btn').css('color', 'var(--toggl-purple)');
+}
 
-            var htmlData = ``;
-            for(item of Object.entries(list)){
-                
-                var htmlDataItems='';
-                var totalDayTime=0;
+function toggleBillable() {
+    isBillable = !isBillable;
+    updateBillableButton();
+}
 
-                if(item.length)
-                {
-                    item[1].forEach(function(listItem,listItemKey){
-                        desc = listItem.description;
-                        if(desc == null) desc='<span class="text-secondary fst-italic">[No description]</span>';
-                        desc = desc.replaceAll("\n","<br/>");
-                        desc = desc.replaceAll("\r\n","<br/>");
+function updateBillableButton() {
+    if (isBillable) {
+        $('.billable-btn').addClass('active');
+    } else {
+        $('.billable-btn').removeClass('active');
+    }
+}
 
-                        totalDayTime+=listItem.duration;
+function switchTab(tabName) {
+    $('.nav-link').removeClass('active');
+    $(`.nav-link[onclick="switchTab('${tabName}')"]`).addClass('active');
 
-                        var durationTime = formatDuration(listItem.duration)
-                        
-                        htmlDataItems+=`
-                            <div class="border border-1 border-dark-subtle bg-body p-3 d-inline-block w-100 mb-1">
-                                <div class="item-detail d-inline-block" style="width: calc(100% - 130px);" onclick="window.location.href='/detail.html?timesheet=${listItem.id}'">
-                                    <div class="item-name d-inline-block pb-2" >
-                                        ${desc}
-                                    </div>
-                                    <!--
-                                    <div class="item-customer d-block px-2">
-                                    <li style="color: ${((typeof(cache._parseProjects[listItem.project])!="undefined")?cache._parseProjects[listItem.project].color:'#000')}">${((typeof(cache._parseProjects[listItem.project])!=="undefined")?cache._parseProjects[listItem.project].parentTitle:'---')}</li>
-                                    </div>
-                                    -->
-                                    <div class="item-project d-block px-2">
-                                        <li style="color: ${((typeof(cache._parseProjects[listItem.project])!="undefined")?cache._parseProjects[listItem.project].color:'#000')}">${((typeof(cache._parseProjects[listItem.project])!=="undefined")?cache._parseProjects[listItem.project].name:'---')}</li>
-                                    </div>
-                                    <div class="item-activity d-block px-2">
-                                    <li style="color: ${((typeof(cache._parseActivities[listItem.activity])!=="undefined")?cache._parseActivities[listItem.activity].color:'#000')}">${((typeof(cache._parseActivities[listItem.activity])!=="undefined")?cache._parseActivities[listItem.activity].name:'---')}</li>
-                                    </div>
-                                </div>
-                                <div class="item-btns d-inline-block float-end">
-                                    <div class="item-total py-1 px-2 d-inline-block">
-                                        ${durationTime}
-                                    </div>
-                                    <div class="d-none btn btn-sm btn-primary d-inline-block detail-btn">
-                                        <i class="fas fa-search"></i>
-                                    </div>
-                                    <a href="#" class="btn btn-sm btn-primary d-inline-block repeat-btn" onclick="repeatItem(${listItem.id}); return false;">
-                                        <i class="fas fa-repeat"></i>
-                                    </a>
-                                </div>
-                            </div>`;
-                            
-                    });
-                }
-                
-                htmlData+= `
-                <div class="col-12 date-item">
-                    <br/>
-                    <div class="border border-1 border-dark-subtle bg-secondary-subtle p-1 pb-0 d-inline-block w-100">
-                        <div class="date py-1 px-2 d-inline-block">
-                            ${item[0]}
-                        </div>
-                        <div class="total py-1 px-2 d-inline-block float-end">
-                            Total: ${formatDuration(totalDayTime)}
-                        </div>
-                `;
-                htmlData+=htmlDataItems;
-                htmlData+=`
-                    </div>
-                </div>`;
-               
+    $('#listView, #pomodoroView, #calendarView').addClass('d-none');
+
+    if (tabName === 'list') {
+        $('#listView').removeClass('d-none');
+        $('.today-total-container').removeClass('d-none');
+    } else if (tabName === 'pomodoro') {
+        $('#pomodoroView').removeClass('d-none');
+        $('.today-total-container').addClass('d-none');
+    } else if (tabName === 'calendar') {
+        $('#calendarView').removeClass('d-none');
+        $('.today-total-container').addClass('d-none');
+    }
+}
+
+async function renderTimesheet(data) {
+    var items = data;
+    var list = {};
+    var todayTotal = 0;
+    var todayStr = moment().format('ddd, D MMM');
+
+    if (items.length) {
+        items.forEach(function (item, key) {
+            var date = new Date(item.end)
+            var d = date.getDate();
+            var m = date.getMonth() + 1;
+            var y = date.getFullYear();
+
+            var itemData = item;
+            var dateFormatted = moment(item.end).format('ddd, D MMM');
+            if (typeof (list[dateFormatted]) === "undefined") list[dateFormatted] = [];
+            list[dateFormatted].push(itemData);
+
+            // Calculate Today Total
+            if (dateFormatted === todayStr) {
+                todayTotal += item.duration;
             }
-            $('.list-data').html(htmlData)
+        });
+
+        $('#todayTotal').text(formatDuration(todayTotal));
+
+        var htmlData = ``;
+        for (item of Object.entries(list)) {
+
+            var htmlDataItems = '';
+            var totalDayTime = 0;
+
+            if (item.length) {
+                item[1].forEach(function (listItem, listItemKey) {
+                    desc = listItem.description;
+                    if (desc == null) desc = '<span class="text-secondary fst-italic">(No description)</span>';
+
+                    totalDayTime += listItem.duration;
+                    var durationTime = formatDuration(listItem.duration)
+
+                    var projectName = 'No Project';
+                    var projectColor = 'var(--text-secondary)';
+
+                    if (listItem.project && cache._parseProjects[listItem.project]) {
+                        projectName = cache._parseProjects[listItem.project].name;
+                        projectColor = cache._parseProjects[listItem.project].color;
+                    }
+
+                    var billableIcon = listItem.billable ? '<i class="fas fa-dollar-sign text-success ms-2" style="font-size: 10px;"></i>' : '';
+
+                    htmlDataItems += `
+                        <div class="time-entry">
+                            <div class="entry-desc" onclick="window.location.href='/detail.html?timesheet=${listItem.id}'" style="cursor: pointer;">
+                                ${desc} ${billableIcon}
+                            </div>
+                            <div class="entry-project" style="color: ${projectColor}">
+                                ${projectName}
+                            </div>
+                            <div class="entry-time">
+                                ${durationTime}
+                            </div>
+                            <button class="btn-continue" onclick="repeatItem(${listItem.id})">
+                                <i class="fas fa-play" style="font-size: 10px;"></i>
+                            </button>
+                        </div>`;
+                });
+            }
+
+            htmlData += `
+            <div class="time-entry-group">
+                <div class="date-header">
+                    <span>${item[0]}</span>
+                    <span>${formatDuration(totalDayTime)}</span>
+                </div>
+                ${htmlDataItems}
+            </div>`;
         }
-        else
-        {
-            $('.list-data').html('')
+        $('.list-data').html(htmlData)
+    }
+    else {
+        $('.list-data').html('<div class="text-center text-secondary mt-5">No time entries found</div>')
+        $('#todayTotal').text('0:00:00');
+    }
+}
+
+// Project Selection Logic
+function openProjectSelector() {
+    renderProjectList();
+    var myModal = new bootstrap.Modal(document.getElementById('projectModal'));
+    myModal.show();
+    setTimeout(() => $('#projectSearch').focus(), 500);
+}
+
+function renderProjectList(filter = "") {
+    var html = "";
+    var projects = Object.values(cache._parseProjects); // Assuming _parseProjects is an object with IDs as keys
+
+    // Sort projects by name
+    projects.sort((a, b) => a.name.localeCompare(b.name));
+
+    projects.forEach(p => {
+        if (filter && !p.name.toLowerCase().includes(filter.toLowerCase())) return;
+
+        html += `
+        <button type="button" class="list-group-item list-group-item-action bg-dark text-light border-secondary" onclick="selectProject(${p.id})">
+            <i class="fas fa-circle me-2" style="color: ${p.color}; font-size: 10px;"></i>
+            ${p.name}
+            <small class="text-secondary ms-2">${p.parentTitle || ''}</small>
+        </button>
+        `;
+    });
+    $('#projectList').html(html);
+}
+
+function selectProject(id) {
+    selectedProjectId = id;
+    updateProjectButton(id);
+    // Reset activity if it doesn't belong to this project (optional, but good practice)
+    // For now, let's keep it simple.
+
+    var modalEl = document.getElementById('projectModal');
+    var modal = bootstrap.Modal.getInstance(modalEl);
+    modal.hide();
+
+    // Auto open activity selector if not selected
+    if (!selectedActivityId) {
+        setTimeout(() => openActivitySelector(), 300);
+    }
+}
+
+// Activity Selection Logic
+function openActivitySelector() {
+    renderActivityList();
+    var myModal = new bootstrap.Modal(document.getElementById('activityModal'));
+    myModal.show();
+    setTimeout(() => $('#activitySearch').focus(), 500);
+}
+
+function renderActivityList(filter = "") {
+    var html = "";
+    var activities = Object.values(cache._parseActivities);
+
+    activities.sort((a, b) => a.name.localeCompare(b.name));
+
+    activities.forEach(a => {
+        if (filter && !a.name.toLowerCase().includes(filter.toLowerCase())) return;
+
+        // Filter by project if project is selected
+        if (selectedProjectId && a.project && a.project != selectedProjectId) return;
+
+        html += `
+        <button type="button" class="list-group-item list-group-item-action bg-dark text-light border-secondary" onclick="selectActivity(${a.id})">
+            <i class="fas fa-tasks me-2"></i>
+            ${a.name}
+        </button>
+        `;
+    });
+    $('#activityList').html(html);
+}
+
+function selectActivity(id) {
+    selectedActivityId = id;
+    updateActivityButton(id);
+    var modalEl = document.getElementById('activityModal');
+    var modal = bootstrap.Modal.getInstance(modalEl);
+    modal.hide();
+}
+
+// Tag Selection Logic
+function openTagSelector() {
+    renderTagList();
+    var myModal = new bootstrap.Modal(document.getElementById('tagModal'));
+    myModal.show();
+    setTimeout(() => $('#tagSearch').focus(), 500);
+}
+
+function renderTagList(filter = "") {
+    var html = "";
+    // Assuming tags are in cache.tags (need to verify cache structure)
+    // If not, we might need to fetch them or check cache.js
+    var tags = cache.tags || [];
+
+    tags.forEach(t => {
+        if (filter && !t.name.toLowerCase().includes(filter.toLowerCase())) return;
+
+        html += `
+        <button type="button" class="list-group-item list-group-item-action bg-dark text-light border-secondary" onclick="selectTag(${t.id})">
+            <i class="fas fa-tag me-2"></i>
+            ${t.name}
+        </button>
+        `;
+    });
+    $('#tagList').html(html);
+}
+
+function selectTag(id) {
+    // For now single tag selection for simplicity, or toggle
+    if (selectedTagIds.includes(id)) {
+        selectedTagIds = selectedTagIds.filter(tid => tid !== id);
+    } else {
+        selectedTagIds.push(id);
+    }
+    // Visual feedback?
+    // Close modal
+    var modalEl = document.getElementById('tagModal');
+    var modal = bootstrap.Modal.getInstance(modalEl);
+    modal.hide();
+}
+
+// Pomodoro Logic
+var pomoInterval;
+var pomoTime = 25 * 60;
+var pomoRunning = false;
+var pomoMode = 'focus'; // focus, short, long
+
+function togglePomodoro() {
+    if (pomoRunning) {
+        clearInterval(pomoInterval);
+        pomoRunning = false;
+        $('#pomoBtn i').removeClass('fa-pause').addClass('fa-play');
+    } else {
+        pomoRunning = true;
+        $('#pomoBtn i').removeClass('fa-play').addClass('fa-pause');
+        pomoInterval = setInterval(() => {
+            pomoTime--;
+            updatePomoDisplay();
+            if (pomoTime <= 0) {
+                clearInterval(pomoInterval);
+                pomoRunning = false;
+                $('#pomoBtn i').removeClass('fa-pause').addClass('fa-play');
+                Neutralino.os.showNotification('Pomodoro', 'Timer finished!', 'INFO');
+                // Play sound?
+            }
+        }, 1000);
+    }
+}
+
+function resetPomodoro() {
+    clearInterval(pomoInterval);
+    pomoRunning = false;
+    $('#pomoBtn i').removeClass('fa-pause').addClass('fa-play');
+    setPomoMode(pomoMode); // Reset time based on mode
+}
+
+function setPomoMode(mode) {
+    pomoMode = mode;
+    if (mode === 'focus') {
+        pomoTime = 25 * 60;
+        $('#pomoStatus').text('FOCUS');
+    } else if (mode === 'short') {
+        pomoTime = 5 * 60;
+        $('#pomoStatus').text('SHORT BREAK');
+    } else if (mode === 'long') {
+        pomoTime = 15 * 60;
+        $('#pomoStatus').text('LONG BREAK');
+    }
+    updatePomoDisplay();
+}
+
+function updatePomoDisplay() {
+    var minutes = Math.floor(pomoTime / 60);
+    var seconds = pomoTime % 60;
+    $('#pomoTimer').text(
+        (minutes < 10 ? '0' : '') + minutes + ':' + (seconds < 10 ? '0' : '') + seconds
+    );
+    if (pomoRunning) {
+        document.title = $('#pomoTimer').text() + " - Pomodoro";
+    }
+}
+
+// Idle Handling
+var capturedIdleStartTime = null;
+
+function onIdleDetected(startTime) {
+    capturedIdleStartTime = startTime;
+
+    // Calculate idle duration
+    var diff = moment().diff(startTime);
+    var duration = moment.utc(diff).format("HH:mm:ss");
+
+    $('#idleSinceTime').text(startTime.format('HH:mm:ss'));
+    $('#idleDuration').text(duration);
+
+    var myModal = new bootstrap.Modal(document.getElementById('idleModal'));
+    myModal.show();
+
+    Neutralino.window.show(); // Bring window to front
+    Neutralino.os.showNotification('Idle Detected', 'You have been away. Review your time.', 'INFO');
+}
+
+async function handleIdle(action) {
+    var modalEl = document.getElementById('idleModal');
+    var modal = bootstrap.Modal.getInstance(modalEl);
+    modal.hide();
+
+    if (action === 'keep') {
+        // Do nothing, just close modal. Timer continues.
+    } else if (action === 'discard') {
+        // Stop timer at capturedIdleStartTime
+        if (activeItemId > 0) {
+            // Need to patch the entry with end time = capturedIdleStartTime
+            var endStr = capturedIdleStartTime.format();
+
+            // First stop it normally to ensure cleaner state via API,
+            // then patch the end time?
+            // Or just patch end time? 'stop' endpoint usually sets to NOW.
+
+            // Let's manually patch the entry's end time.
+            var data = { end: endStr };
+            await api.makeAPICallAsync("patch", "/api/timesheets/" + activeItemId, data);
+
+            renderInactive();
+            clearInterval(timerDuration);
+            document.title = "CodeTimer";
+            await loadItems();
         }
+    } else if (action === 'discard_new') {
+        // Stop at capturedIdleStartTime, then start new
+        if (activeItemId > 0) {
+            var endStr = capturedIdleStartTime.format();
+            var data = { end: endStr };
+            await api.makeAPICallAsync("patch", "/api/timesheets/" + activeItemId, data);
+
+            // Refresh to get clean state
+            await loadItems();
+
+            // Start new timer
+            startItem(); // Starts 'now' with current description/project
+        }
+    }
+
+    idleService.isIdle = false;
 }

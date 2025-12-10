@@ -1,6 +1,7 @@
 <!doctype html>
 <html lang="en">
-  <head>
+
+<head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CodeTimer</title>
@@ -10,17 +11,19 @@
     <link href="lib/fontawesome/css/all.min.css" rel="stylesheet" />
     <script src="lib/bootstrap/bootstrap-5.3.0-alpha3-dist/js/bootstrap.bundle.min.js"></script>
     <script src="lib/jquery/dist/jquery.min.js"></script>
-    <link href="style.css" rel="stylesheet"/>
+    <link href="style.css" rel="stylesheet" />
 
-    <link href="lib/select2/dist/css/select2.min.css" rel="stylesheet"/>
-    <link href="lib/select2/select2-bootstrap-5-theme.min.css" rel="stylesheet"/>
+    <link href="lib/select2/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="lib/select2/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
     <scrpt src="lib/select2/dist/js/select2.min.js"></scrpt>
     <script src="lib/moment/moment.min.js"></script>
 
-  </head>
-  <body data-bs-theme="dark">
-    <!-- Modal -->     
-    <div class="modal modal-sm fade" id="loadingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+</head>
+
+<body data-bs-theme="dark">
+    <!-- Modal -->
+    <div class="modal modal-sm fade" id="loadingModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+        aria-labelledby="exampleModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="text-end mx-2 my-1">
@@ -35,79 +38,103 @@
             </div>
         </div>
     </div>
-  
-    
+
+
 
     <div class="container">
-        <div class="header pt-4">
-            <div class="row">
-                <div class="col-6 col-md-8">
-                    <img src="icons/logo.png" class="logo" onclick="openHomepage()">
-                </div>
-                <div class="col-6 col-md-4 text-end">
-                    <a href="index.html" class="btn btn-sm btn-primary"><i class="fas fa-arrow-left-long"></i> <span class="d-none d-sm-inline-block">Back</span></a>
-                    <a href="#" class="btn btn-sm btn-primary" onclick="reloadCache();"><i class="fas fa-refresh"></i> <span class="d-none d-sm-inline-block">Cache</span></a>
-                    <a href="#" class="d-none btn btn-sm btn-success updateBtn" onclick="checkUpdate(1)"><i class="fas fa-arrow-up-right-from-square"></i> <span class="d-none d-sm-inline-block">Update</span><i class="update-dot text-danger fas fa-circle"></i></a>
-                </div>
+        <div class="header">
+            <div class="header-actions">
+                <a href="index.html" class="btn-icon"><i class="fas fa-arrow-left"></i> Back</a>
+            </div>
+            <div class="header-actions">
+                <a href="#" class="btn-icon" onclick="reloadCache();" title="Reload Cache"><i
+                        class="fas fa-sync"></i></a>
+                <a href="#" class="d-none btn-icon updateBtn" onclick="checkUpdate(1)" title="Update"><i
+                        class="fas fa-arrow-up"></i><i class="update-dot text-danger fas fa-circle"></i></a>
             </div>
         </div>
 
-        <div class="mt-3 p-1 pb-0 d-inline-block w-100">
+        <div class="detail-card"
+            style="background-color: var(--bg-card); padding: 20px; border-radius: 4px; margin-top: 20px;">
+            <h5 class="mb-4" style="color: var(--text-primary);">Settings</h5>
+
+            <div class="form-group mb-3">
+                <label class="text-secondary mb-1">Host</label>
+                <input type="text" class="form-control" id="host" placeholder="https://kimai.example.com"
+                    style="background: var(--bg-darker); border: 1px solid var(--border-color); color: var(--text-primary);">
+            </div>
+
+            <div class="form-group mb-3">
+                <label class="text-secondary mb-1">Username</label>
+                <input type="text" class="form-control" id="username" placeholder="Username"
+                    style="background: var(--bg-darker); border: 1px solid var(--border-color); color: var(--text-primary);">
+            </div>
+
+            <div class="form-group mb-4">
+                <label class="text-secondary mb-1">API Token</label>
+                <input type="password" class="form-control" id="token" placeholder="API Token"
+                    style="background: var(--bg-darker); border: 1px solid var(--border-color); color: var(--text-primary);">
+            </div>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="use_only_token" value="1"
+                    style="background-color: var(--bg-darker); border-color: var(--border-color);">
+                <label class="form-check-label text-secondary" for="use_only_token">
+                    Use only token (Kimai > v.2.20)
+                </label>
+            </div>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="min_tray" value="1"
+                    style="background-color: var(--bg-darker); border-color: var(--border-color);">
+                <label class="form-check-label text-secondary" for="min_tray">
+                    Minimize to tray on close
+                </label>
+            </div>
+
+            <div class="form-check mb-4">
+                <input class="form-check-input" type="checkbox" id="always_top" value="1"
+                    style="background-color: var(--bg-darker); border-color: var(--border-color);">
+                <label class="form-check-label text-secondary" for="always_top">
+                    Window always on top
+                </label>
+            </div>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="idle_detection" value="1"
+                    style="background-color: var(--bg-darker); border-color: var(--border-color);">
+                <label class="form-check-label text-secondary" for="idle_detection">
+                    Enable Idle Detection
+                </label>
+            </div>
+
+            <div class="form-group mb-4" id="idle_timeout_group">
+                <label class="text-secondary mb-1">Idle Timeout (minutes)</label>
+                <input type="number" class="form-control" id="idle_timeout" value="5" min="1"
+                    style="background: var(--bg-darker); border: 1px solid var(--border-color); color: var(--text-primary);">
+            </div>
+
+            <hr class="border-secondary mb-4">
+
             <div class="row">
-                <div class="col-12 mb-2">
-                    <div class="form-floating">
-                        <input type="text" class="form-control" id="host" placeholder="kimai.org" value="">
-                        <label for="host">Host</label>
-                    </div>
-                </div>
-                <div class="col-12 mb-2">
-                    <div class="form-floating">
-                        <input type="text" class="form-control" id="username" placeholder="kimai.org" value="">
-                        <label for="username">Username</label>
-                    </div>
-                </div>
-                <div class="col-12 mb-2">
-                    <div class="form-floating">
-                        <input type="password" class="form-control" id="token" placeholder="kimai.org" value="">
-                        <label for="token">API Token</label>
-                    </div>
-                </div>
-                <br/><br/><br/><br/>
-                <div class="col-12 col-md-12 mb-2">
-                    <input type="hidden" name="use_only_token" value="0" />
-                    <input type="checkbox" name="use_only_token" value="1" id="use_only_token" />
-                    &nbsp;
-                    <label for="use_only_token">Use only token (allow for Kimai > v.2.20)</label>
-                </div>
-                <div class="col-12 col-md-6 mb-2">
-                    <input type="hidden" name="min_tray" value="0" />
-                    <input type="checkbox" name="min_tray" value="1" id="min_tray" />
-                    &nbsp;
-                    <label for="min_tray">On close minimize to tray</label>
-                </div>
-                <div class="col-12 col-md-6 mb-2">
-                    <input type="hidden" name="always_top" value="0" />
-                    <input type="checkbox" name="always_top" value="1" id="always_top" />
-                    &nbsp;
-                    <label for="always_top">Window always on top</label>
-                </div>
-                <br/><br/>
                 <div class="col-6">
-                    <a href="#" class="btn btn-warning w-100" onclick="testConnection()">
+                    <button class="btn btn-outline-warning w-100" onclick="testConnection()"
+                        style="border-color: #fcc419; color: #fcc419;">
                         <i class="fas fa-satellite-dish"></i> Test
-                    </a>
+                    </button>
                 </div>
                 <div class="col-6">
-                    <a href="#" class="btn btn-primary w-100" onclick="saveSetting()">
+                    <button class="btn btn-primary w-100" onclick="saveSetting()"
+                        style="background-color: var(--toggl-purple); border: none;">
                         <i class="fas fa-save"></i> Save
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>
     </div>
     <div class="footer text-center pt-2 py-2">
-        v. <span class="app-version">0.0.0</span><br/>
-        &copy; 2023 Martin Lačný - Owly 
+        v. <span class="app-version">0.0.0</span><br />
+        &copy; 2023 Martin Lačný - Owly
     </div>
 
 
@@ -116,5 +143,6 @@
     <script src="js/cache.js"></script>
     <script src="js/API.js"></script>
     <script src="js/setting.js"></script>
-  </body>
+</body>
+
 </html>

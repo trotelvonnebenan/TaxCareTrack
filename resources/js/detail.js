@@ -1,34 +1,36 @@
 var urlParams = new URLSearchParams(window.location.search);
-init().then(()=>{
-    if(urlParams.has('timesheet'))
-    {
+init().then(() => {
+    $('select').select2({
+        theme: "bootstrap-5",
+        dropdownCssClass: "bg-darker text-light border-secondary" // Custom class if needed, or rely on CSS overrides
+    });
+
+    if (urlParams.has('timesheet')) {
         itemId = urlParams.get('timesheet');
         loadItem()
 
     }
-    else
-    {
+    else {
         renderNewItem()
     }
-    
+
 });
 
-function loadItem(){
+function loadItem() {
     var api = new API();
-    api.makeAPICallAsync("get","/api/timesheets/"+itemId).then((item)=>{
-        if(debug) console.log('item', item);
+    api.makeAPICallAsync("get", "/api/timesheets/" + itemId).then((item) => {
+        if (debug) console.log('item', item);
         renderItem(item);
 
-        if(urlParams.has('active'))
-        {
+        if (urlParams.has('active')) {
             renderActive();
         }
     });
-    
+
 }
 
-function renderItem(item){
-    
+function renderItem(item) {
+
     var timeFrom = formatTime(item.begin);
     $('#time_from').val(timeFrom)
     var timeTo = formatTime(item.end);
@@ -49,158 +51,237 @@ function renderItem(item){
     $('#projectSelect').val(item.project)
     $('#activitySelect').val(item.activity)
 
-    cache.projects.forEach(function(projectItem,key){
-        if(item.project == projectItem.id)
-        {
+    cache.projects.forEach(function (projectItem, key) {
+        if (item.project == projectItem.id) {
             $('#customerSelect').val(projectItem.customer)
             return false;
         }
     });
 
-    
+
     renderUpdateProjectViaCustomer();
-    $('#customerSelect').change(function(){
+    $('#customerSelect').change(function () {
         renderUpdateProjectViaCustomer();
     });
 
     $('#projectSelect').val(item.project);
-    
+
     renderUpdateActivitiesViaProject();
-    $('#customerSelect, #projectSelect').change(function(){
+    $('#customerSelect, #projectSelect').change(function () {
         renderUpdateActivitiesViaProject();
-        if($('#activitySelect option[value="'+item.activity+'"]').length) $('#activitySelect').val(item.activity);
+        if ($('#activitySelect option[value="' + item.activity + '"]').length) $('#activitySelect').val(item.activity);
     });
 
     $('#activitySelect').val(item.activity);
 
     renderCallbacksForSelects();
-}
 
-function renderUpdateActivitiesViaProject(){
-
-    var selectedProject = $('#projectSelect').val();
-    if(selectedProject==0 || selectedProject=="") return false;
-
-    renderItemActivities();
-    $(`#activitySelect option[data-project][data-project!="${selectedProject}"]`).each(function(){
-        if($(this).attr('data-project')!="" && $(this).attr('data-project')!=="null") $(this).remove();
+    $('#time_total').change(function () {
+        updateEndTimeFromDuration();
     });
 }
 
-function renderUpdateProjectViaCustomer(){
+function updateEndTimeFromDuration() {
+    var durationStr = $('#time_total').val().trim();
+    var durationSeconds = 0;
+
+    // Regex for smart formats
+    var smartRegex = /^(\d+(?:\.\d+)?)(h|m|s)$/i;
+    var match = durationStr.match(smartRegex);
+
+    if (match) {
+        var val = parseFloat(match[1]);
+        var unit = match[2].toLowerCase();
+        if (unit === 'h') durationSeconds = val * 3600;
+        if (unit === 'm') durationSeconds = val * 60;
+        if (unit === 's') durationSeconds = val;
+    } else if (durationStr.includes(' ')) {
+        // Handle composite like "1h 30m"
+        var parts = durationStr.split(' ');
+        parts.forEach(part => {
+            var m = part.match(smartRegex);
+            if (m) {
+                var val = parseFloat(m[1]);
+                var unit = m[2].toLowerCase();
+                if (unit === 'h') durationSeconds += val * 3600;
+                if (unit === 'm') durationSeconds += val * 60;
+                if (unit === 's') durationSeconds += val;
+            }
+        });
+    } else {
+        // Standard HH:MM:SS or HH:MM
+        var durationParts = durationStr.split(':');
+        if (durationParts.length === 3) {
+            durationSeconds = parseInt(durationParts[0]) * 3600 + parseInt(durationParts[1]) * 60 + parseInt(durationParts[2]);
+        } else if (durationParts.length === 2) {
+            durationSeconds = parseInt(durationParts[0]) * 3600 + parseInt(durationParts[1]) * 60;
+        } else {
+            // Fallback to moment duration
+            var d = moment.duration(durationStr);
+            if (d.isValid()) {
+                durationSeconds = d.asSeconds();
+            }
+        }
+    }
+
+    // Fallback if manual parsing worked better for HH:MM:SS
+    if (durationSeconds === 0 && durationStr !== "00:00:00" && durationStr !== "0") {
+        // Try moment parsing as last resort
+        var dur = moment.duration(durationStr);
+        durationSeconds = dur.asSeconds();
+    }
+
+    var dateStr = $('#date').val();
+    var timeFromStr = $('#time_from').val();
+    var startDateTime = moment(dateStr + ' ' + timeFromStr, "DD.MM.YYYY HH:mm:ss");
+
+    if (startDateTime.isValid()) {
+        var endDateTime = startDateTime.clone().add(durationSeconds, 'seconds');
+        $('#time_to').val(endDateTime.format('HH:mm:ss'));
+
+        // Update the duration field to standard format for consistency (optional, but good UX)
+        // $('#time_total').val(formatDuration(durationSeconds)); 
+        // Actually, let's keep user input or update on blur? 
+        // Let's update on blur to show we understood.
+    }
+}
+
+// Add blur event to format it nicely
+$('#time_total').on('blur', function () {
+    updateEndTimeFromDuration(); // Ensure calc is done
+    // Re-calculate duration from start/end to normalize display
+    var dateStr = $('#date').val();
+    var timeFromStr = $('#time_from').val();
+    var timeToStr = $('#time_to').val();
+
+    var start = moment(dateStr + ' ' + timeFromStr, "DD.MM.YYYY HH:mm:ss");
+    var end = moment(dateStr + ' ' + timeToStr, "DD.MM.YYYY HH:mm:ss");
+
+    if (start.isValid() && end.isValid()) {
+        var diff = end.diff(start, 'seconds');
+        $(this).val(formatDuration(diff));
+    }
+});
+
+function renderUpdateActivitiesViaProject() {
+
+    var selectedProject = $('#projectSelect').val();
+    if (selectedProject == 0 || selectedProject == "") return false;
+
+    renderItemActivities();
+    $(`#activitySelect option[data-project][data-project!="${selectedProject}"]`).each(function () {
+        if ($(this).attr('data-project') != "" && $(this).attr('data-project') !== "null") $(this).remove();
+    });
+}
+
+function renderUpdateProjectViaCustomer() {
     var selectedCustomer = $('#customerSelect').val();
     var selectedProject = $('#projectSelect').val();
 
-    if(selectedCustomer==0 || selectedCustomer=="") return false;
+    if (selectedCustomer == 0 || selectedCustomer == "") return false;
 
     renderItemProjects();
-    $(`#projectSelect option[data-customer][data-customer!="${selectedCustomer}"]`).each(function(){
+    $(`#projectSelect option[data-customer][data-customer!="${selectedCustomer}"]`).each(function () {
         $(this).remove();
     });
-    
-    if(!$(`#projectSelect option[value="${selectedProject}"]`).length)
-    {
+
+    if (!$(`#projectSelect option[value="${selectedProject}"]`).length) {
         $(`#projectSelect`).val($(`#projectSelect option:first`).val());
     }
 
-    $(`#projectSelect`).trigger('change'); 
+    $(`#projectSelect`).trigger('change');
 }
 
-function renderActive(){
+function renderActive() {
     $('#time_total').val('');
-    $('#time_total').attr('readonly','readonly');
+    $('#time_total').attr('readonly', 'readonly');
     $('#time_to').val('');
-    $('#time_to').attr('readonly','readonly');
+    $('#time_to').attr('readonly', 'readonly');
     $('.delete-item').remove();
 }
 
-function renderItemProjects(){
+function renderItemProjects() {
     htmlData = ``;
-    cache.projects.forEach(function(item,key){
-        htmlData+=`
+    cache.projects.forEach(function (item, key) {
+        htmlData += `
             <option value="${item.id}" data-customer="${item.customer}">${item.name}</option>
         `;
     });
-    
+
     $('#projectSelect').html(htmlData);
 }
 
-function renderItemActivities(){
+function renderItemActivities() {
     htmlData = ``;
-    cache.activities.forEach(function(item,key){
-        htmlData+=`
+    cache.activities.forEach(function (item, key) {
+        htmlData += `
             <option value="${item.id}" data-project="${item.project}">${item.name}</option>
         `;
     });
-    
+
     $('#activitySelect').html(htmlData);
 }
 
-function renderItemCustomers(){
+function renderItemCustomers() {
     htmlData = ``;
-    cache.customers.forEach(function(item,key){
-        htmlData+=`
+    cache.customers.forEach(function (item, key) {
+        htmlData += `
             <option value="${item.id}">${item.name}</option>
         `;
     });
-    
+
     $('#customerSelect').html(htmlData);
 }
 
-function deleteItem(){
+function deleteItem() {
 
     openLoadingDialog();
-    var button = Neutralino.os.showMessageBox('Confirm','Are you sure you want to delete?','YES_NO_CANCEL', 'QUESTION')
-    .then((state)=>{
-        if(debug) console.log('button state',state)
-        if(state=="YES")
-        {
-            var api = new API()
-            var resp = api.makeAPICall('delete','/api/timesheets/'+itemId);
-            window.location.href='index.html'
-        }
-        closeLoadingDialog();
-    });
-    
+    var button = Neutralino.os.showMessageBox('Confirm', 'Are you sure you want to delete?', 'YES_NO_CANCEL', 'QUESTION')
+        .then((state) => {
+            if (debug) console.log('button state', state)
+            if (state == "YES") {
+                var api = new API()
+                var resp = api.makeAPICall('delete', '/api/timesheets/' + itemId);
+                window.location.href = 'index.html'
+            }
+            closeLoadingDialog();
+        });
+
 }
 
 
-function saveItem(){
+function saveItem() {
 
     openLoadingDialog();
 
-    if(typeof(itemId)!=="undefined")
-    {
-        
-        data = {};    
-        var dateString = $('#date').val()+' '+$('#time_from').val();
+    if (typeof (itemId) !== "undefined") {
+
+        data = {};
+        var dateString = $('#date').val() + ' ' + $('#time_from').val();
         data.begin = moment(dateString, "DD.MM.YYYY HH:mm:ss").format()
 
-        if(!urlParams.has('active'))
-        {
-            var dateString = $('#date').val()+' '+$('#time_to').val();
+        if (!urlParams.has('active')) {
+            var dateString = $('#date').val() + ' ' + $('#time_to').val();
             data.end = moment(dateString, "DD.MM.YYYY HH:mm:ss").format()
         }
-        
+
 
         data.description = $('#desc').val()
         data.project = $('#projectSelect').val()
         data.activity = $('#activitySelect').val()
 
         var api = new API();
-        var resp = api.makeAPICall("patch","/api/timesheets/"+itemId, data)
-        if(debug) console.log('api Response',resp)
-        
+        var resp = api.makeAPICall("patch", "/api/timesheets/" + itemId, data)
+        if (debug) console.log('api Response', resp)
+
     }
-    else
-    {
-        data = {};    
-        var dateString = $('#date').val()+' '+$('#time_from').val();
+    else {
+        data = {};
+        var dateString = $('#date').val() + ' ' + $('#time_from').val();
         data.begin = moment(dateString, "DD.MM.YYYY HH:mm:ss").format()
 
-        if($('#time_to').val()!="")
-        {
-            var dateString = $('#date').val()+' '+$('#time_to').val();
+        if ($('#time_to').val() != "") {
+            var dateString = $('#date').val() + ' ' + $('#time_to').val();
             data.end = moment(dateString, "DD.MM.YYYY HH:mm:ss").format()
         }
 
@@ -210,20 +291,20 @@ function saveItem(){
         data.activity = $('#activitySelect').val()
 
         var api = new API();
-        var resp = api.makeAPICall("post","/api/timesheets", data)
-        if(debug) console.log('api Response',resp)
+        var resp = api.makeAPICall("post", "/api/timesheets", data)
+        if (debug) console.log('api Response', resp)
     }
 
     closeLoadingDialog();
 
-    window.location.href='index.html';
+    window.location.href = 'index.html';
 
 }
 
-function renderNewItem(){
+function renderNewItem() {
     var desc = '';
-    if(urlParams.has('description')) desc = decodeURIComponent(urlParams.get('description'));
-     
+    if (urlParams.has('description')) desc = decodeURIComponent(urlParams.get('description'));
+
     $('#desc').val(desc);
     $('#desc').focus();
     $('#date').val(moment().format("DD.MM.YYYY"))
@@ -238,22 +319,22 @@ function renderNewItem(){
     $('.save-item .text').text('Start');
 
     renderUpdateProjectViaCustomer();
-    $('#customerSelect').change(function(){
+    $('#customerSelect').change(function () {
         renderUpdateProjectViaCustomer();
     });
 
     renderUpdateActivitiesViaProject();
-    $('#customerSelect, #projectSelect').change(function(){
+    $('#customerSelect, #projectSelect').change(function () {
         renderUpdateActivitiesViaProject();
     });
 
     renderCallbacksForSelects();
 }
 
-function renderCallbacksForSelects(){
-    $('.select2-selection').on('focus',function(){
+function renderCallbacksForSelects() {
+    $('.select2-selection').on('focus', function () {
         //if($('.select2-search__field:visible').length) return false;
-        
+
         $(this).closest('div').find('select').select2('open');
     });
 }
