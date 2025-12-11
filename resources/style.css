@@ -345,3 +345,85 @@ body {
     align-items: center;
     justify-content: center;
 }
+
+/* Mini Mode */
+body.mini-mode {
+    overflow: hidden;
+    background-color: var(--bg-dark);
+}
+
+body.mini-mode .header,
+body.mini-mode .nav-tabs-container,
+body.mini-mode .today-total-container,
+body.mini-mode .list,
+body.mini-mode .pomodoro-view,
+body.mini-mode .progress,
+body.mini-mode .project-select-btn,
+body.mini-mode .activity-select-btn,
+body.mini-mode .tag-select-btn,
+body.mini-mode .billable-btn {
+    display: none !important;
+}
+
+body.mini-mode .container {
+    padding: 5px;
+    max-width: 100%;
+}
+
+body.mini-mode .timer-bar {
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+body.mini-mode .desc-input {
+    font-size: 14px;
+    width: 120px;
+}
+
+body.mini-mode .timer-display {
+    font-size: 18px;
+    margin: 0 10px;
+}
+
+body.mini-mode .btn-start {
+    width: 30px;
+    height: 30px;
+    font-size: 12px;
+}
+
+/* Mini Mode Toggle Button */
+.mini-mode-btn {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1000;
+}
+
+body.mini-mode .mini-mode-btn {
+    top: 5px;
+    right: 5px;
+    bottom: auto;
+    width: 20px;
+    height: 20px;
+    font-size: 10px;
+    opacity: 0.5;
+}
+
+body.mini-mode .mini-mode-btn:hover {
+    opacity: 1;
+}

@@ -51,6 +51,12 @@ function renderSettings() {
             $('#idle_timeout').val(5);
         }
 
+        if (typeof (setting.daily_goal) !== "undefined") {
+            $('#daily_goal').val(setting.daily_goal);
+        } else {
+            $('#daily_goal').val(8);
+        }
+
     }).catch(function (error) {
         if (debug) console.log('error', error)
     });
@@ -80,6 +86,7 @@ async function saveSetting() {
     if ($('#idle_detection').prop('checked')) idle_detection = 1;
 
     var idle_timeout = $('#idle_timeout').val();
+    var daily_goal = $('#daily_goal').val();
 
     api = new API()
     api.setCredentials(host, username, token, use_only_token)
@@ -92,7 +99,8 @@ async function saveSetting() {
         always_top: always_top,
         use_only_token: use_only_token,
         idle_detection: idle_detection,
-        idle_timeout: idle_timeout
+        idle_timeout: idle_timeout,
+        daily_goal: daily_goal
     });
 
     await Neutralino.storage.setData('setting', data)
@@ -105,6 +113,7 @@ async function saveSetting() {
             setting.use_only_token = use_only_token;
             setting.idle_detection = idle_detection;
             setting.idle_timeout = idle_timeout;
+            setting.daily_goal = daily_goal;
             refreshCache();
 
             Neutralino.os.showMessageBox("Setting", "Settings saved!")
