@@ -56,10 +56,32 @@ init().then(() => {
     })
 
 async function loadItems() {
-    api.makeAPICallAsync("get", "/api/timesheets?active=0").then((items) => {
+    // Fetch last 100 entries to ensure good history
+    api.makeAPICallAsync("get", "/api/timesheets?active=0&size=100").then((items) => {
         if (debug) console.log('items', items)
         renderTimesheet(items)
     });
+}
+
+async function syncAll() {
+    // Show spinner on sync button
+    let btnIcon = $('.header-actions .fa-sync-alt');
+    btnIcon.addClass('fa-spin');
+
+    try {
+        await refreshCache();
+        await loadItems();
+        await loadActive();
+        Neutralino.os.showNotification('Sync', 'Data synced successfully', 'INFO');
+    } catch (e) {
+        console.error(e);
+        Neutralino.os.showNotification('Sync Failed', 'Could not sync data', 'ERROR');
+    }
+
+    // Stop spinner
+    setTimeout(() => {
+        btnIcon.removeClass('fa-spin');
+    }, 500);
 }
 
 async function loadActive() {
@@ -80,6 +102,7 @@ async function renderActive(item) {
     $('#desc').val(item.description);
     $('.start-btn').addClass('d-none');
     $('.stop-btn').removeClass('d-none');
+    $('.min-pause-btn').removeClass('d-none'); // Show pause button (CSS will handle which one is visible)
 
     // Update project button
     if (item.project && cache._parseProjects[item.project]) {
@@ -183,6 +206,7 @@ function renderInactive() {
     $('#desc').val('');
     $('.start-btn').removeClass('d-none');
     $('.stop-btn').addClass('d-none');
+    $('.min-pause-btn').addClass('d-none');
     $('.stop-time').text('00:00:00');
 
     resetProjectButton();

@@ -6,7 +6,7 @@
   "port": 0,
   "documentRoot": "/resources/",
   "url": "/",
-  "applicationIcon": "resources/icons/appicon.png",
+  "applicationIcon": "resources/icons/app.ico",
   "enableServer": true,
   "enableNativeAPI": true,
   "enableExtensions": false,

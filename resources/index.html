@@ -42,7 +42,7 @@
         <div class="header">
             <img src="icons/logo.png" class="logo" onclick="openHomepage()">
             <div class="header-actions">
-                <button class="btn-icon" onclick="loadItems()"><i class="fas fa-sync-alt"></i></button>
+                <button class="btn-icon" onclick="syncAll()"><i class="fas fa-sync-alt"></i></button>
                 <a href="./setting.html" class="btn-icon"><i class="fas fa-cog"></i><i
                         class="update-dot text-danger fas fa-circle"></i></a>
             </div>
@@ -63,6 +63,10 @@
             </button>
             <button class="btn-start btn-stop stop-btn d-none" onclick="stopItem()">
                 <i class="fas fa-stop"></i>
+            </button>
+            <!-- Pause Button for Mini Mode (Calls stopItem same as stop, but different icon) -->
+            <button class="btn-start btn-stop min-pause-btn d-none" onclick="stopItem()">
+                <i class="fas fa-pause"></i>
             </button>
         </div>
 
